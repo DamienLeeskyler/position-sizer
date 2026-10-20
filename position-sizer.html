@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Position Sizer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+html{color-scheme:light dark}
+/* Layout: one narrow column that sits beside a broker window. Inputs on top, the answer (shares) large directly below, secondary checks under it. */
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --ink:#111a23; --muted:#5a6773; --line:#d3dbe3; --field:#f7f9fb;
+  --accent:#1e5fc0; --accent-ink:#ffffff; --accent-soft:#e1ebfa;
+  --good:#11784a; --good-soft:#dcf1e6; --bad:#bd3125; --bad-soft:#fae2df; --warn:#8c5a08; --warn-soft:#f8ecd2;
+  --f-body:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --f-mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1217; --surface:#141b22; --ink:#e5ebf1; --muted:#8c99a6; --line:#25303a; --field:#0f161c;
+    --accent:#7aa8f0; --accent-ink:#0b1626; --accent-soft:#17263c;
+    --good:#47c98c; --good-soft:#12301f; --bad:#ff8b7f; --bad-soft:#3a1c19; --warn:#e6b35b; --warn-soft:#33270e;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1217; --surface:#141b22; --ink:#e5ebf1; --muted:#8c99a6; --line:#25303a; --field:#0f161c;
+  --accent:#7aa8f0; --accent-ink:#0b1626; --accent-soft:#17263c;
+  --good:#47c98c; --good-soft:#12301f; --bad:#ff8b7f; --bad-soft:#3a1c19; --warn:#e6b35b; --warn-soft:#33270e;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));-webkit-text-size-adjust:100%}
+.app{max-width:460px;margin-inline:auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+h1{font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em;white-space:nowrap}
+.sub{color:var(--muted);font-size:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row2>*{min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+input{font:inherit;font-family:var(--f-mono);font-size:20px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:7px;padding:9px 10px;width:100%;min-width:0}
+input.small{font-size:15px;padding:7px 9px}
+input:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[aria-invalid="true"]{border-color:var(--bad)}
+.hint{font-weight:400;letter-spacing:0;font-size:12px;color:var(--muted)}
+.badge{display:inline-block;font:600 11px/18px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:0 7px;background:var(--accent-soft);color:var(--accent)}
+.badge.short{background:var(--warn-soft);color:var(--warn)}
+.result{display:flex;flex-direction:column;gap:12px}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hero .k{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.hero .v{font:700 54px/1 var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.hero .u{font:500 14px var(--f-body);color:var(--muted);margin-left:6px;letter-spacing:0}
+.btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:8px 14px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stats>div{padding:9px 11px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0;min-width:0}
+.stats .k{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.stats .v{font:500 17px var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.note{border-radius:7px;padding:8px 10px;font-size:13px}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.good{background:var(--good-soft);color:var(--good)}
+.note.info{background:var(--accent-soft);color:var(--ink)}
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+summary{cursor:pointer;padding:11px 14px;font-weight:600;font-size:13px}
+details .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.good{color:var(--good)} .bad{color:var(--bad)}
+.foot{color:var(--muted);font-size:12px}
+@media (max-width:380px){.hero .v{font-size:46px}}
+</style>
+
+</head><body>
+<div class="app">
+  <header><h1>Position Sizer</h1><span class="sub" id="budgetLine"></span></header>
+
+  <section class="panel" aria-label="Trade">
+    <div class="row2">
+      <label>Entry price<input id="entry" inputmode="decimal" autocomplete="off" value="100"></label>
+      <label>Stop price<input id="stop" inputmode="decimal" autocomplete="off" value="94"></label>
+    </div>
+    <div class="hint" id="exampleHint">Example numbers. Type over them.</div>
+    <div id="sideLine" class="hint"></div>
+  </section>
+
+  <section class="panel result" aria-live="polite" id="resultPanel">
+    <div class="hero">
+      <div><div class="k">Shares to buy</div><div><span class="v" id="shares">0</span><span class="u" id="sharesUnit">shares</span></div></div>
+      <button class="btn" id="copyBtn" type="button">Copy</button>
+    </div>
+    <div id="msgs" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <details id="more">
+    <summary>Optional checks</summary>
+    <div class="body">
+      <div class="row2">
+        <label>Target price<input class="small" id="target" inputmode="decimal" autocomplete="off" placeholder="reward : risk"></label>
+        <label>ATR (daily)<input class="small" id="atr" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.2"></label>
+      </div>
+      <div class="row2">
+        <label>Shares you want<input class="small" id="want" inputmode="numeric" autocomplete="off" placeholder="e.g. 300"></label>
+        <label>Risk already open ($)<input class="small" id="other" inputmode="decimal" autocomplete="off" placeholder="e.g. 1500"></label>
+      </div>
+    </div>
+  </details>
+
+  <details id="acct">
+    <summary>Account and rules</summary>
+    <div class="body">
+      <div class="row2">
+        <label>Account value ($)<input class="small" id="nav" inputmode="decimal" autocomplete="off" value="200000"></label>
+        <label>Risk per trade (%)<input class="small" id="riskPct" inputmode="decimal" autocomplete="off" value="0.5"></label>
+      </div>
+      <label>Position cap (% of account, optional)<input class="small" id="cap" inputmode="decimal" autocomplete="off" placeholder="leave blank for none"></label>
+      <div class="hint">Account value and risk % are remembered on this device. Update the account value each week.</div>
+    </div>
+  </details>
+
+  <div class="foot">Shares = risk budget ÷ (entry − stop), rounded down. Long if the stop is below the entry, short if above. A gap through the stop can lose more than the budget.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var KEY='positionSizer.v1';
+var touched=false;
+
+function num(id){var s=String($(id).value||'').replace(/[$,\s]/g,'');if(s==='')return null;var v=Number(s);return isFinite(v)?v:NaN}
+function usd(v,d){if(v==null||!isFinite(v))return '–';var dd=d==null?0:d;return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:dd,maximumFractionDigits:dd})}
+function pct(v,d){return v==null||!isFinite(v)?'–':v.toFixed(d==null?1:d)+'%'}
+function px(v){return v==null||!isFinite(v)?'–':'$'+(+v.toFixed(4)).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}
+function stat(k,v,cls){return '<div><div class="k">'+k+'</div><div class="v '+(cls||'')+'">'+v+'</div></div>'}
+
+function load(){
+  try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){if(s.nav)$('nav').value=s.nav;if(s.riskPct)$('riskPct').value=s.riskPct;if(s.cap!=null)$('cap').value=s.cap}}catch(e){}
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify({nav:$('nav').value,riskPct:$('riskPct').value,cap:$('cap').value}))}catch(e){}
+}
+
+function calc(){
+  var nav=num('nav'),rp=num('riskPct'),cap=num('cap');
+  var entry=num('entry'),stop=num('stop'),target=num('target'),atr=num('atr'),want=num('want'),other=num('other');
+  ['entry','stop','nav','riskPct'].forEach(function(id){var v=num(id);$(id).setAttribute('aria-invalid',(v!=null&&(isNaN(v)||v<=0))?'true':'false')});
+  var msgs=[],stats='';
+  var budget=(nav>0&&rp>0)?nav*rp/100:null;
+  $('budgetLine').textContent=budget?('Risk budget '+usd(budget,0)+' ('+pct(rp,2)+' of '+usd(nav,0)+')'):'Set account value and risk %';
+  var ok=budget&&entry>0&&stop>0&&entry!==stop;
+  var side=ok?(stop<entry?'long':'short'):null;
+  $('sideLine').innerHTML=side?('<span class="badge '+(side==='short'?'short':'')+'">'+side+'</span> stop is '+(side==='long'?'below':'above')+' your entry'):'';
+  var shares=0,dist=null,note;
+  if(!budget){msgs.push('<div class="note warn">Enter your account value and risk % under Account and rules.</div>')}
+  else if(!(entry>0)||!(stop>0)){msgs.push('<div class="note info">Enter an entry and a stop price.</div>')}
+  else if(entry===stop){msgs.push('<div class="note bad">Entry and stop are the same price, so there is no risk distance to size from.</div>')}
+  else{
+    dist=Math.abs(entry-stop);
+    var byRisk=Math.floor(budget/dist+1e-9);
+    shares=byRisk;
+    if(cap>0){var byCap=Math.floor(nav*cap/100/entry+1e-9);if(byCap<shares){shares=byCap;msgs.push('<div class="note warn">Limited by your '+pct(cap,0)+' position cap. The risk budget alone would allow '+byRisk.toLocaleString('en-US')+' shares.</div>')}}
+    if(shares<1){msgs.push('<div class="note bad">The stop is too wide for this budget. One share already risks '+usd(dist,2)+', more than your '+usd(budget,0)+'. Skip it or find a closer stop level.</div>');shares=0}
+    var val=shares*entry,risk=shares*dist;
+    stats+=stat('Position value',usd(val,0));
+    stats+=stat('Share of account',pct(val/nav*100,1)+(val>nav?' ('+(val/nav).toFixed(2)+'x)':''));
+    stats+=stat('Risk at stop',usd(risk,0),'');
+    stats+=stat('Risk, % of account',pct(risk/nav*100,2));
+    stats+=stat('Stop distance',usd(dist,2)+' · '+pct(dist/entry*100,1));
+    if(atr>0)stats+=stat('Stop in ATR',(dist/atr).toFixed(2)+' ATR');
+    if(target!=null&&!isNaN(target)&&target>0){
+      var good=side==='long'?target>entry:target<entry;
+      if(!good){msgs.push('<div class="note warn">The target is on the wrong side of the entry for a '+side+'.</div>')}
+      else{var rew=Math.abs(target-entry);stats+=stat('Reward : risk',(rew/dist).toFixed(2)+' : 1',(rew/dist>=2?'good':''));stats+=stat('Gain at target',usd(rew*shares,0),'good')}
+    }
+    if(other!=null&&!isNaN(other)&&other>=0){var tot=other+risk;stats+=stat('Total open risk',usd(tot,0)+' · '+pct(tot/nav*100,2))}
+    if(want>0){
+      var wr=want*dist,over=wr>budget+0.005;
+      msgs.push('<div class="note '+(over?'bad':'good')+'">'+want.toLocaleString('en-US')+' shares would risk '+usd(wr,0)+' ('+pct(wr/nav*100,2)+' of account), '+(over?'over':'within')+' your budget'+(over?' by '+usd(wr-budget,0)+'. Use '+shares.toLocaleString('en-US')+' shares or fewer.':'.')+'</div>');
+    }
+  }
+  $('shares').textContent=shares.toLocaleString('en-US');
+  $('sharesUnit').textContent=shares===1?'share':'shares';
+  $('copyBtn').disabled=shares<1;
+  $('msgs').innerHTML=msgs.join('');
+  $('stats').innerHTML=stats;
+  $('stats').hidden=!stats;
+  return shares;
+}
+
+function copy(){
+  var s=String($('shares').textContent).replace(/,/g,''),b=$('copyBtn');
+  var done=function(t){b.textContent=t;setTimeout(function(){b.textContent='Copy'},1200)};
+  try{navigator.clipboard.writeText(s).then(function(){done('Copied')},function(){fallback()})}catch(e){fallback()}
+  function fallback(){var t=document.createElement('input');t.value=s;document.body.appendChild(t);t.select();try{document.execCommand('copy');done('Copied')}catch(e){done('Select '+s)}t.remove()}
+}
+
+function onInput(e){
+  if(!touched&&(e.target.id==='entry'||e.target.id==='stop')){touched=true;$('exampleHint').hidden=true}
+  if(e.target.id==='nav'||e.target.id==='riskPct'||e.target.id==='cap')save();
+  calc();
+}
+load();
+['entry','stop','target','atr','want','other','nav','riskPct','cap'].forEach(function(id){$(id).addEventListener('input',onInput)});
+$('entry').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('stop').focus();$('stop').select()}});
+$('stop').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();$('entry').focus();$('entry').select()}});
+$('entry').addEventListener('focus',function(){this.select()});
+$('stop').addEventListener('focus',function(){this.select()});
+$('copyBtn').addEventListener('click',copy);
+calc();
+})();
+</script>
+
+</body></html>
